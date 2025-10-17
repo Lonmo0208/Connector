@@ -121,7 +121,7 @@ public class ConnectorLoaderService implements ITransformationService {
             IModuleLayerManager.Layer.GAME,
             Stream.of(
                     FabricASMFixer.provideGeneratedClassesJar(),
-                    ModuleLayerMigrator.moveModule(AUTHLIB_MODULE),
+                    ModuleLayerMigrator.moveModule(AUTHLIB_MODULE)
                     //ModuleLayerMigrator.moveModule(BRIGADIER_MODULE)
                 )
                 .filter(Objects::nonNull)
