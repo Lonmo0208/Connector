@@ -122,7 +122,7 @@ public class ConnectorLoaderService implements ITransformationService {
             Stream.of(
                     FabricASMFixer.provideGeneratedClassesJar(),
                     ModuleLayerMigrator.moveModule(AUTHLIB_MODULE),
-                    ModuleLayerMigrator.moveModule(BRIGADIER_MODULE)
+                    //ModuleLayerMigrator.moveModule(BRIGADIER_MODULE)
                 )
                 .filter(Objects::nonNull)
                 .toList()
