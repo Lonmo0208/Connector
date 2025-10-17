@@ -96,9 +96,9 @@ public class ConnectorCoremods implements ICoreMod {
             }
         );
         List<ITransformer<?>> addedFields = List.of(
-            addFieldToClass("net.minecraft.client.particle.ParticleEngine", "providers", "Lit/unimi/dsi/fastutil/ints/Int2ObjectMap;", Opcodes.ACC_PRIVATE),
-            addFieldToClass("net.minecraft.client.color.block.BlockColors", "blockColors", "Lnet/minecraft/core/IdMapper;", Opcodes.ACC_PRIVATE),
-            addFieldToClass("net.minecraft.client.color.item.ItemColors", "itemColors", "Lnet/minecraft/core/IdMapper;", Opcodes.ACC_PRIVATE)
+            addOriginalSyntheticField("net.minecraft.client.particle.ParticleEngine", "providers", "Lit/unimi/dsi/fastutil/ints/Int2ObjectMap;"),
+            addOriginalSyntheticField("net.minecraft.client.color.block.BlockColors", "blockColors", "Lnet/minecraft/core/IdMapper;"),
+            addOriginalSyntheticField("net.minecraft.client.color.item.ItemColors", "itemColors", "Lnet/minecraft/core/IdMapper;")
         );
         ITransformer<?> missingOrderingCall = new BaseTransformer<>(
             TargetType.METHOD,
@@ -130,6 +130,17 @@ public class ConnectorCoremods implements ICoreMod {
                 }
             }
         );
+        ITransformer<ClassNode> accessTransform = new BaseTransformer<>(
+            TargetType.CLASS,
+            ITransformer.Target.targetClass("net.neoforged.neoforge.network.bundle.PacketAndPayloadAcceptor"),
+            input -> {
+                FieldNode field = input.fields.stream().filter(f -> f.name.equals("consumer")).findFirst().orElse(null);
+                if (field != null) {
+                    field.access = Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL;
+                    LOGGER.debug("Made public PacketAndPayloadAcceptor#consumer");
+                }
+            }
+        );
 
         return ImmutableList.<ITransformer<?>>builder()
             .add(keyMappingFieldTypeTransform, creativeModeTabConstructorTransform)
@@ -137,15 +148,18 @@ public class ConnectorCoremods implements ICoreMod {
             .addAll(getFabricASMTransformers())
             .add(missingOrderingCall)
             .add(expandLocalVarScope)
+            .add(accessTransform)
             .build();
     }
 
-    private static ITransformer<?> addFieldToClass(String cls, String name, String desc, int access) {
+    private static ITransformer<?> addOriginalSyntheticField(String cls, String name, String desc) {
         return new BaseTransformer<>(
             TargetType.CLASS,
             ITransformer.Target.targetClass(cls),
             input -> {
-                input.fields.add(new FieldNode(access, name, desc, null, null));
+                // Try to find the original field with the same name and copy its access modifiers (accounting for ATs/AWs, but removing final so it can be assigned within our mixin). If we cannot find it, we will use public non-final so that mods can access it.
+                var originalAccess = input.fields.stream().filter(f -> f.name.equals(name)).findFirst().map(f -> f.access).orElse(Opcodes.ACC_PUBLIC);
+                input.fields.add(new FieldNode((originalAccess & ~Opcodes.ACC_FINAL) | Opcodes.ACC_SYNTHETIC, name, desc, null, null));
 
                 LOGGER.debug("Added field {} to class {}", name, cls);
             }
